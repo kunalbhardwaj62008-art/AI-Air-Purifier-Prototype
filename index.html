@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ CTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -121,7 +121,37 @@
                     <h3>Energy Efficient</h3>
                     <p>12V adapter + buck converter. Sleep mode when AQI < 30. Low power consumption (~5W max).</p>
                 </div>
+        </div>
+        </section>
+
+        <section id="demo">
+            <h2>🎮 Interactive 3D Simulator</h2>
+            <p>Explore the Smart Air Purifier in immersive 3D! Rotate, zoom, and interact with all components in real-time. Simulate different AQI levels, watch the fan activate, and see the complete system in action with live sensors, wiring, and airflow visualization.</p>
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="SmartAirPurifier3D.html" target="_blank" 
+                   style="
+                     display: inline-block;
+                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                     color: white;
+                     padding: 18px 40px;
+                     font-size: 1.3em;
+                     font-weight: bold;
+                     text-decoration: none;
+                     border-radius: 50px;
+                     box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+                     transition: all 0.3s ease;
+                     text-transform: uppercase;
+                     letter-spacing: 1px;
+                   "
+                   onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 40px rgba(102, 126, 234, 0.6)';"
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 30px rgba(102, 126, 234, 0.4)';"
+                >
+                   🚀 Launch 3D Simulator
+                </a>
             </div>
+            <p style="font-size: 0.95em; opacity: 0.8; text-align: center;">
+               Powered by Three.js • Real-time AQI simulation • Component controls • Arduino wiring diagram
+            </p>
         </section>
 
         <section id="aqi-scale">
@@ -210,3 +240,5 @@
     </div>
 </body>
 </html>
+
+
