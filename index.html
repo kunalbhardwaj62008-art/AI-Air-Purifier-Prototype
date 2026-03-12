@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Air Purifier - Professional Grade Air Quality Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { 
+            text-align: center; 
+            color: white; 
+            padding: 40px 0; 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px);
+            border-radius: 20px; 
+            margin-bottom: 40px;
+        }
+        h1 { font-size: 3em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .tagline { font-size: 1.2em; opacity: 0.9; }
+        section { 
+            background: white; 
+            margin-bottom: 30px; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.8s ease-out;
+        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        h2 { color: #4a5568; margin-bottom: 20px; font-size: 2em; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .feature { 
+            text-align: center; 
+            padding: 20px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 10px; 
+            transition: all 0.3s ease;
+        }
+        .feature:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.15); border-color: #667eea; }
+        .feature-icon { font-size: 3em; margin-bottom: 10px; }
+        .aqi-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .aqi-table th, .aqi-table td { padding: 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .aqi-table th { background: #f7fafc; font-weight: 600; }
+        .good { background: #c6f6d5; }
+        .moderate { background: #fed7aa; }
+        .poor { background: #fed7aa; }
+        .very-poor { background: #feb2b2; }
+        .components-list { list-style: none; }
+        .components-list li { padding: 10px; margin-bottom: 10px; background: #f7fafc; border-radius: 8px; display: flex; justify-content: space-between; }
+        .status-demo { 
+            display: flex; 
+            justify-content: space-around; 
+            margin: 20px 0; 
+            flex-wrap: wrap;
+        }
+        .status-card { 
+            text-align: center; 
+            padding: 20px; 
+            border-radius: 10px; 
+            min-width: 150px; 
+            color: white; 
+            font-weight: bold;
+        }
+        .status-good { background: #48bb78; }
+        .status-moderate { background: #ed8936; }
+        .status-poor { background: #f56565; }
+        footer { text-align: center; padding: 20px; color: white; background: rgba(0,0,0,0.3); border-radius: 15px; margin-top: 40px; }
+        @media (max-width: 768px) { h1 { font-size: 2em; } .features-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧊 AI Smart Air Purifier</h1>
+            <p class="tagline">Arduino-Powered Precision Air Quality Control for Healthier Living</p>
+        </header>
+
+        <section id="overview">
+            <h2>🚀 Product Overview</h2>
+            <p>Experience professional-grade air purification with our AI Smart Air Purifier. Powered by Arduino Uno and advanced MQ135 sensor technology, it intelligently monitors and cleans indoor air by detecting pollutants like CO2, smoke, VOCs, and more. Dual HEPA + Carbon filtration removes 99.97% of 0.3μm particles and odors, covering up to 200 sq ft effectively.[web:24][web:29]</p>
+            <p>Real-time AQI display, color-coded alerts, and automatic fan activation ensure your air stays clean 24/7. Compact, energy-efficient (12V operation), and fully customizable.</p>
+        </section>
+
+        <section id="features">
+            <h2>✨ Key Features</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real-Time AQI Monitoring</h3>
+                    <p>MQ135 sensor samples air every second, calculates AQI (0-500), displayed on OLED screen.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💨</div>
+                    <h3>Auto Fan Activation</h3>
+                    <p>120mm DC fan + relay turns ON automatically when AQI > 100. Air flows through HEPA + Carbon filters.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Visual Status Indicators</h3>
+                    <p>RGB LED: Green (Good), Yellow (Moderate), Red (Poor). Buzzer alerts at AQI > 150.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📱</div>
+                    <h3>OLED Dashboard</h3>
+                    <p>0.96" display shows AQI, raw PPM, fan status, and pollution level in real-time.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Smart Calibration</h3>
+                    <p>Self-adjusts to baseline clean air. PWM fan speed scales with pollution severity.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Energy Efficient</h3>
+                    <p>12V adapter + buck converter. Sleep mode when AQI < 30. Low power consumption (~5W max).</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="aqi-scale">
+            <h2>📈 AQI Status Guide</h2>
+            <p>Based on standard EPA/US AQI scale for easy understanding.[web:23][web:28]</p>
+            <table class="aqi-table">
+                <thead>
+                    <tr>
+                        <th>AQI Range</th>
+                        <th>Level</th>
+                        <th>LED Color</th>
+                        <th>Health Impact</th>
+                        <th>Fan Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="good">
+                        <td>0-50</td>
+                        <td>Good</td>
+                        <td>🟢 Green</td>
+                        <td>Excellent air quality</td>
+                        <td>OFF</td>
+                    </tr>
+                    <tr class="moderate">
+                        <td>51-100</td>
+                        <td>Moderate</td>
+                        <td>🟡 Yellow</td>
+                        <td>Acceptable for most</td>
+                        <td>OFF</td>
+                    </tr>
+                    <tr class="poor">
+                        <td>101-150</td>
+                        <td>Poor</td>
+                        <td>🔴 Red</td>
+                        <td>Sensitive groups affected</td>
+                        <td>ON</td>
+                    </tr>
+                    <tr class="very-poor">
+                        <td>151+</td>
+                        <td>Very Poor</td>
+                        <td>🔴 Red + Buzzer</td>
+                        <td>Everyone: Reduce exposure</td>
+                        <td>ON (High)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="status-demo">
+                <div class="status-card status-good">Good<br>AQI 35 🟢</div>
+                <div class="status-card status-moderate">Moderate<br>AQI 85 🟡</div>
+                <div class="status-card status-poor">Poor<br>AQI 145 🔴</div>
+            </div>
+        </section>
+
+        <section id="components">
+            <h2>🛠️ Hardware Components</h2>
+            <ul class="components-list">
+                <li><span>Arduino Uno</span> <span>Brain & Controller</span></li>
+                <li><span>MQ135 Sensor</span> <span>Air Quality Detection</span></li>
+                <li><span>120mm DC Fan</span> <span>Air Circulation</span></li>
+                <li><span>HEPA Filter (H13 equiv.)</span> <span>99.97% Particle Removal</span></li>
+                <li><span>Activated Carbon Filter</span> <span>Odors & VOCs</span></li>
+                <li><span>0.96" OLED Display</span> <span>Real-Time UI</span></li>
+                <li><span>5V Relay Module</span> <span>Fan Control</span></li>
+                <li><span>Active Buzzer & RGB LED</span> <span>Alerts & Status</span></li>
+                <li><span>12V Adapter + Buck Conv.</span> <span>Power Supply</span></li>
+                <li><span>Project Box (150x100x80mm)</span> <span>Enclosure</span></li>
+            </ul>
+        </section>
+
+        <section id="maintenance">
+            <h2>🧹 Maintenance & Safety</h2>
+            <ul>
+                <li>Replace HEPA/Carbon filters every 6-12 months (or 3000 hours).[web:21][web:24]</li>
+                <li>Clean pre-filter monthly with vacuum.</li>
+                <li>Calibrate MQ135 in clean outdoor air annually.</li>
+                <li>Operate in 10-35°C, away from direct sunlight.</li>
+                <li>Power: 12V DC 2A adapter only. Buck converter handles 5V logic.</li>
+                <li>Safety: Relay isolates high-voltage fan circuit.</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 AI Smart Air Purifier. Engineered for Precision. Built for Health.<br>
+            For support: <a href="#contact" style="color: #fff;">contact@airpurifier.ai</a> | Ver 1.0</p>
+        </footer>
+    </div>
+</body>
+</html>

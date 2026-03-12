@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Air Purifier — Arduino DIY Prototype</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c14;
+  --panel: #0d1420;
+  --border: #1a2a3a;
+  --accent: #00d4ff;
+  --accent2: #00ff88;
+  --warn: #ffaa00;
+  --danger: #ff3344;
+  --text: #c8d8e8;
+  --text-dim: #4a6070;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-ui: 'Rajdhani', sans-serif;
+  --font-title: 'Orbitron', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #050a12, #0a1525, #050a12);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 100;
+  flex-shrink: 0;
+}
+header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: scanline 3s ease-in-out infinite;
+}
+@keyframes scanline { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+.logo {
+  font-family: var(--font-title);
+  font-size: 1.1em;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  letter-spacing: 0.1em;
+}
+.logo span { color: var(--accent2); }
+.hdr-center {
+  font-family: var(--font-title);
+  font-size: 0.5em;
+  letter-spacing: 0.3em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  transition: all 0.3s;
+}
+.status-good { border-color: var(--accent2); color: var(--accent2); background: rgba(0,255,136,0.08); }
+.status-moderate { border-color: var(--warn); color: var(--warn); background: rgba(255,170,0,0.08); }
+.status-poor { border-color: var(--danger); color: var(--danger); background: rgba(255,51,68,0.1); animation: pulse-danger 1s ease-in-out infinite; }
+@keyframes pulse-danger { 0%,100%{box-shadow:0 0 5px rgba(255,51,68,0.3)} 50%{box-shadow:0 0 15px rgba(255,51,68,0.8)} }
+
+/* MAIN LAYOUT */
+.main {
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* LEFT PANEL */
+.left-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.left-panel::-webkit-scrollbar { width: 3px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* CENTER — 3D CANVAS */
+.center-panel {
+  position: relative;
+  overflow: hidden;
+}
+#threeCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.right-panel::-webkit-scrollbar { width: 3px; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* PANEL SECTIONS */
+.section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-family: var(--font-title);
+  font-size: 0.5em;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* AQI METER */
+.aqi-display {
+  text-align: center;
+  padding: 10px 0;
+}
+.aqi-value {
+  font-family: var(--font-title);
+  font-size: 3.5em;
+  font-weight: 900;
+  line-height: 1;
+  transition: color 0.5s;
+  text-shadow: 0 0 30px currentColor;
+}
+.aqi-label {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.aqi-status {
+  font-family: var(--font-ui);
+  font-size: 1.2em;
+  font-weight: 700;
+  margin-top: 4px;
+  letter-spacing: 0.1em;
+}
+
+/* AQI BAR */
+.aqi-bar-wrap {
+  margin: 10px 0;
+  position: relative;
+}
+.aqi-bar-track {
+  height: 8px;
+  background: linear-gradient(90deg, #00ff88 0%, #ffff00 30%, #ffaa00 60%, #ff3344 80%, #cc0022 100%);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;
+}
+.aqi-bar-cursor {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #000;
+  transform: translateX(-50%);
+  transition: left 0.5s ease;
+  box-shadow: 0 0 8px rgba(255,255,255,0.8);
+}
+.aqi-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* SENSOR READINGS */
+.sensor-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+}
+.sensor-lbl { color: var(--text-dim); }
+.sensor-val { color: var(--accent); font-weight: bold; }
+.sensor-bar { flex: 1; height: 3px; background: #111; border-radius: 2px; margin: 0 8px; overflow: hidden; }
+.sensor-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+/* COMPONENT STATUS GRID */
+.comp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.comp-card {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  transition: border-color 0.3s;
+}
+.comp-card.active { border-color: var(--accent2); }
+.comp-card.warn { border-color: var(--warn); }
+.comp-card.alert { border-color: var(--danger); }
+.comp-name {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  color: var(--text-dim);
+}
+.comp-state {
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  font-weight: bold;
+  margin-top: 2px;
+}
+.comp-state.on { color: var(--accent2); }
+.comp-state.off { color: var(--text-dim); }
+.comp-state.warn { color: var(--warn); }
+.comp-state.danger { color: var(--danger); }
+
+/* RGB LED INDICATOR */
+.led-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+.led-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  transition: all 0.3s;
+}
+.led-dot.active {
+  box-shadow: 0 0 12px 4px currentColor;
+  border-color: currentColor;
+}
+
+/* AQI GRAPH */
+.graph-wrap {
+  position: relative;
+  height: 80px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#aqiGraphCanvas { width:100%; height:100%; display:block; }
+
+/* VIEW CONTROLS */
+.view-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.vbtn {
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.4);
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+.vbtn:hover, .vbtn.active {
+  background: rgba(0,212,255,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* SIMULATION CONTROLS */
+.sim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.sim-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.65em;
+  color: var(--text-dim);
+  width: 70px;
+  flex-shrink: 0;
+}
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), rgba(0,212,255,0.3));
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 5px var(--accent);
+}
+.sim-val {
+  font-family: var(--font-mono);
+  font-size: 0.65em;
+  color: var(--accent);
+  width: 35px;
+  text-align: right;
+}
+
+/* WIRING TABLE */
+.wire-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.62em;
+}
+.wire-table th {
+  text-align: left;
+  color: var(--text-dim);
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  font-weight: normal;
+}
+.wire-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.pin-from { color: var(--accent); }
+.pin-to { color: var(--accent2); }
+.pin-arrow { color: var(--text-dim); text-align: center; }
+
+/* ARDUINO CODE BLOCK */
+.code-block {
+  background: rgba(0,0,0,0.6);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.58em;
+  color: #88ccff;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.code-kw { color: #ff88aa; }
+.code-num { color: #ffcc66; }
+.code-str { color: #88ff88; }
+.code-cmt { color: #668877; }
+
+/* OLED DISPLAY SIMULATION */
+.oled-sim {
+  background: #000;
+  border: 3px solid #222;
+  border-radius: 4px;
+  padding: 8px;
+  width: 160px;
+  margin: 6px auto;
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  line-height: 1.6;
+  color: #00ff88;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 0 15px rgba(0,255,136,0.2);
+  position: relative;
+  overflow: hidden;
+}
+.oled-sim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+  pointer-events: none;
+}
+.oled-line { margin: 0; white-space: nowrap; overflow: hidden; }
+.oled-big {
+  font-size: 1.3em;
+  font-weight: bold;
+  text-shadow: 0 0 8px currentColor;
+}
+
+/* AIRFLOW INDICATOR */
+.airflow-container {
+  position: relative;
+  height: 60px;
+  background: linear-gradient(90deg, rgba(0,180,255,0.05), rgba(0,255,136,0.05));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.flow-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  animation: flow 2s linear infinite;
+}
+@keyframes flow {
+  0% { left: 0%; opacity: 0; transform: translateY(0); }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { left: 100%; opacity: 0; transform: translateY(5px); }
+}
+.flow-label {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  color: var(--text-dim);
+  top: 4px;
+}
+
+/* 3D OVERLAY */
+.canvas-overlay {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5,10,20,0.85);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  color: var(--text-dim);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* BOTTOM BOTTOM */
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65em;
+  color: var(--text-dim);
+}
+.bottom-bar span { margin: 0 8px; }
+.clock { color: var(--accent); }
+
+/* Scrollbar */
+*::-webkit-scrollbar { width: 3px; height: 3px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SMART<span>AIR</span> Purifier</div>
+  <div class="hdr-center">Arduino DIY Prototype — MQ135 · HEPA · Carbon Filter</div>
+  <div class="hdr-right">
+    <div style="font-family:var(--font-mono);font-size:0.65em;color:var(--text-dim)">SIM TIME: <span id="simTime" style="color:var(--accent)">00:00</span></div>
+    <div class="status-badge status-good" id="mainStatus">● GOOD</div>
+    <div style="font-family:var(--font-mono);font-size:0.65em;color:var(--text-dim)">AQI: <span id="hdrAqi" style="color:var(--accent);font-weight:bold">35</span></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <div class="section">
+      <div class="section-title">AQI Monitor</div>
+      <div class="aqi-display">
+        <div class="aqi-value" id="aqiValue" style="color:var(--accent2)">35</div>
+        <div class="aqi-label">Air Quality Index</div>
+        <div class="aqi-status" id="aqiStatus" style="color:var(--accent2)">EXCELLENT</div>
+      </div>
+      <div class="aqi-bar-wrap">
+        <div class="aqi-bar-track">
+          <div class="aqi-bar-cursor" id="aqiCursor" style="left:7%"></div>
+        </div>
+        <div class="aqi-scale"><span>0</span><span>100</span><span>200</span><span>300</span><span>500</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sensor Readings</div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">CO₂</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-co2" style="background:#00d4ff;width:20%"></div></div>
+        <span class="sensor-val" id="val-co2">412 ppm</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">NH₃</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-nh3" style="background:#00ff88;width:10%"></div></div>
+        <span class="sensor-val" id="val-nh3">0.8 ppm</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">NOx</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-nox" style="background:#ffaa00;width:8%"></div></div>
+        <span class="sensor-val" id="val-nox">0.04 ppm</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">Benzene</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-benz" style="background:#ff88aa;width:5%"></div></div>
+        <span class="sensor-val" id="val-benz">0.5 μg/m³</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">Smoke</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-smoke" style="background:#cc88ff;width:12%"></div></div>
+        <span class="sensor-val" id="val-smoke">0.02 mg/m³</span>
+      </div>
+      <div class="sensor-row">
+        <span class="sensor-lbl">Raw ADC</span>
+        <div class="sensor-bar"><div class="sensor-fill" id="bar-raw" style="background:#44aaff;width:25%"></div></div>
+        <span class="sensor-val" id="val-raw">256</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">OLED Display</div>
+      <div class="oled-sim" id="oledDisplay">
+        <div class="oled-line" style="font-size:0.8em;color:#aaa">SmartAir v1.0</div>
+        <div class="oled-line oled-big" id="oled-aqi">AQI: 35</div>
+        <div class="oled-line" id="oled-status">Status: GOOD</div>
+        <div class="oled-line" id="oled-co2">CO2: 412ppm</div>
+        <div class="oled-line" id="oled-fan">Fan: OFF  Rly: OFF</div>
+        <div class="oled-line" id="oled-uptime">Up: 00:00:00</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">AQI Trend (5 min)</div>
+      <div class="graph-wrap">
+        <canvas id="aqiGraphCanvas"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">RGB LED Status</div>
+      <div class="led-group">
+        <div>
+          <div class="led-dot active" id="led-r" style="background:#ff3344;color:#ff3344;width:18px;height:18px;"></div>
+          <div style="text-align:center;font-family:var(--font-mono);font-size:0.5em;color:#888;margin-top:2px">R</div>
+        </div>
+        <div>
+          <div class="led-dot active" id="led-g" style="background:#00ff88;color:#00ff88;width:18px;height:18px;box-shadow:0 0 12px 4px #00ff88;border-color:#00ff88;"></div>
+          <div style="text-align:center;font-family:var(--font-mono);font-size:0.5em;color:#888;margin-top:2px">G</div>
+        </div>
+        <div>
+          <div class="led-dot" id="led-b" style="background:#2244aa;color:#0044ff;width:18px;height:18px;"></div>
+          <div style="text-align:center;font-family:var(--font-mono);font-size:0.5em;color:#888;margin-top:2px">B</div>
+        </div>
+        <div style="margin-left:10px;font-family:var(--font-mono);font-size:0.65em;color:var(--text-dim)">
+          <div id="led-state" style="color:var(--accent2)">GREEN — GOOD</div>
+          <div>D3=<span id="pin-r">0</span> D5=<span id="pin-g">255</span> D6=<span id="pin-b">0</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER: 3D CANVAS -->
+  <div class="center-panel">
+    <canvas id="threeCanvas"></canvas>
+    <div class="canvas-overlay" id="viewLabel">🔄 Assembled View — Drag to Rotate · Scroll to Zoom</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <div class="section">
+      <div class="section-title">View Controls</div>
+      <div class="view-btns">
+        <button class="vbtn active" onclick="setView('assembled',this)">Assembled</button>
+        <button class="vbtn" onclick="setView('exploded',this)">Exploded</button>
+        <button class="vbtn" onclick="setView('internal',this)">Internals</button>
+        <button class="vbtn" onclick="setView('airflow',this)">Airflow</button>
+        <button class="vbtn" onclick="setView('front',this)">Front Panel</button>
+        <button class="vbtn" onclick="setView('wiring',this)">Wiring</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Component Status</div>
+      <div class="comp-grid">
+        <div class="comp-card active" id="comp-mq135">
+          <div class="comp-name">MQ135 Sensor</div>
+          <div class="comp-state on" id="cs-mq135">● ACTIVE</div>
+        </div>
+        <div class="comp-card active" id="comp-oled">
+          <div class="comp-name">OLED SSD1306</div>
+          <div class="comp-state on" id="cs-oled">● ACTIVE</div>
+        </div>
+        <div class="comp-card" id="comp-fan">
+          <div class="comp-name">120mm DC Fan</div>
+          <div class="comp-state off" id="cs-fan">○ OFF</div>
+        </div>
+        <div class="comp-card" id="comp-relay">
+          <div class="comp-name">5V Relay</div>
+          <div class="comp-state off" id="cs-relay">○ OPEN</div>
+        </div>
+        <div class="comp-card" id="comp-buzzer">
+          <div class="comp-name">Buzzer</div>
+          <div class="comp-state off" id="cs-buzzer">○ SILENT</div>
+        </div>
+        <div class="comp-card active" id="comp-arduino">
+          <div class="comp-name">Arduino Uno</div>
+          <div class="comp-state on" id="cs-arduino">● RUNNING</div>
+        </div>
+        <div class="comp-card active" id="comp-hepa">
+          <div class="comp-name">HEPA Filter</div>
+          <div class="comp-state on" id="cs-hepa">● CLEAN</div>
+        </div>
+        <div class="comp-card active" id="comp-carbon">
+          <div class="comp-name">Carbon Filter</div>
+          <div class="comp-state on" id="cs-carbon">● CLEAN</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Simulation Control</div>
+      <div class="sim-row">
+        <span class="sim-lbl">AQI Level</span>
+        <input type="range" id="aqiSlider" min="0" max="500" value="35" step="1">
+        <span class="sim-val" id="aqiSliderVal">35</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-lbl">Sim Speed</span>
+        <input type="range" id="simSpeed" min="1" max="10" value="3" step="1">
+        <span class="sim-val" id="simSpeedVal">3×</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
+        <button class="vbtn" onclick="setScenario('good')">Good Air</button>
+        <button class="vbtn" onclick="setScenario('moderate')">Moderate</button>
+        <button class="vbtn" onclick="setScenario('poor')">Poor Air</button>
+        <button class="vbtn" onclick="setScenario('danger')">Danger</button>
+        <button class="vbtn" onclick="setScenario('auto')">Auto Cycle</button>
+        <button class="vbtn" onclick="calibrate()">Calibrate</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Airflow Path</div>
+      <div class="airflow-container" id="airflowViz">
+        <div class="flow-particle" style="top:20px;animation-delay:0s"></div>
+        <div class="flow-particle" style="top:30px;animation-delay:0.3s"></div>
+        <div class="flow-particle" style="top:15px;animation-delay:0.6s"></div>
+        <div class="flow-particle" style="top:40px;animation-delay:0.9s"></div>
+        <div class="flow-particle" style="top:25px;animation-delay:1.2s;background:#00ff88"></div>
+        <div class="flow-label" style="left:4px">INTAKE</div>
+        <div class="flow-label" style="left:60px">HEPA</div>
+        <div class="flow-label" style="left:110px">CARBON</div>
+        <div class="flow-label" style="right:4px">EXHAUST</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:0.55em;color:var(--text-dim);margin-top:4px;text-align:center">
+        Intake → MQ135 → HEPA Filter → Carbon Filter → Fan → Exhaust
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Wiring Diagram</div>
+      <table class="wire-table">
+        <tr><th>Component</th><th>Pin</th><th></th><th>Arduino</th></tr>
+        <tr><td style="color:#aaa">MQ135</td><td class="pin-from">VCC</td><td class="pin-arrow">→</td><td class="pin-to">5V</td></tr>
+        <tr><td></td><td class="pin-from">A0</td><td class="pin-arrow">→</td><td class="pin-to">A0</td></tr>
+        <tr><td style="color:#aaa">OLED</td><td class="pin-from">SDA</td><td class="pin-arrow">→</td><td class="pin-to">A4</td></tr>
+        <tr><td></td><td class="pin-from">SCL</td><td class="pin-arrow">→</td><td class="pin-to">A5</td></tr>
+        <tr><td style="color:#aaa">Relay</td><td class="pin-from">IN</td><td class="pin-arrow">→</td><td class="pin-to">D7</td></tr>
+        <tr><td style="color:#aaa">RGB LED</td><td class="pin-from">R</td><td class="pin-arrow">→</td><td class="pin-to">D3(PWM)</td></tr>
+        <tr><td></td><td class="pin-from">G</td><td class="pin-arrow">→</td><td class="pin-to">D5(PWM)</td></tr>
+        <tr><td></td><td class="pin-from">B</td><td class="pin-arrow">→</td><td class="pin-to">D6(PWM)</td></tr>
+        <tr><td style="color:#aaa">Buzzer</td><td class="pin-from">+</td><td class="pin-arrow">→</td><td class="pin-to">D8</td></tr>
+        <tr><td style="color:#aaa">Buck Conv.</td><td class="pin-from">12V IN</td><td class="pin-arrow">→</td><td class="pin-to">Adapter</td></tr>
+        <tr><td></td><td class="pin-from">5V OUT</td><td class="pin-arrow">→</td><td class="pin-to">Vin/GND</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Arduino Code (Live)</div>
+      <div class="code-block" id="codeBlock"><span class="code-cmt">// Smart Air Purifier — Live Code</span>
+<span class="code-kw">void</span> loop() {
+  airQuality = analogRead(A0);
+  aqi = map(airQuality, <span class="code-num">200</span>, <span class="code-num">800</span>, <span class="code-num">0</span>, <span class="code-num">500</span>);
+  aqi = constrain(aqi, <span class="code-num">0</span>, <span class="code-num">500</span>);
+
+  <span class="code-cmt">// Relay / Fan control</span>
+  <span class="code-kw">if</span> (aqi > <span class="code-num">100</span>) {
+    digitalWrite(RELAY_PIN, HIGH);
+  }
+
+  <span class="code-cmt">// Buzzer alert</span>
+  <span class="code-kw">if</span> (aqi > <span class="code-num">150</span>) {
+    <span class="code-kw">for</span>(<span class="code-kw">int</span> i=<span class="code-num">0</span>; i&lt;<span class="code-num">3</span>; i++) {
+      tone(BUZZER_PIN, <span class="code-num">1000</span>, <span class="code-num">200</span>);
+      delay(<span class="code-num">250</span>);
+    }
+  }
+  updateLED();
+  updateDisplay();
+  delay(<span class="code-num">1000</span>);
+}</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <span>Arduino Uno R3 · ATmega328P · 16MHz · 5V</span>
+  <span>MQ135 · A0 · ADC 10-bit · 0-1023</span>
+  <span>OLED SSD1306 · I2C · 0x3C · 128×64px</span>
+  <span>Buck Conv · 12V→5V · 2A · LM2596</span>
+  <span class="clock" id="clockDisplay">--:--:--</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  THREE.JS 3D SCENE
+// ═══════════════════════════════════════════════════════════
+const canvas3d = document.getElementById('threeCanvas');
+const centerPanel = document.querySelector('.center-panel');
+
+const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x040810);
+scene.fog = new THREE.FogExp2(0x040810, 0.025);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+camera.position.set(6, 4, 10);
+
+// Lights
+const ambient = new THREE.AmbientLight(0x112233, 0.8);
+scene.add(ambient);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+keyLight.position.set(8, 12, 8);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x003366, 0.6);
+fillLight.position.set(-8, -4, -8);
+scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0x00d4ff, 0.4);
+rimLight.position.set(0, -8, -10);
+scene.add(rimLight);
+
+// Point lights for glow effects
+const ledGlow = new THREE.PointLight(0x00ff88, 2, 3);
+ledGlow.position.set(-2, 0.8, 2.5);
+scene.add(ledGlow);
+const fanGlow = new THREE.PointLight(0x0044ff, 0.5, 4);
+fanGlow.position.set(0, 0, 3);
+scene.add(fanGlow);
+
+// ── MATERIALS ──
+const absMat = new THREE.MeshStandardMaterial({ color: 0x1a1e2a, roughness: 0.6, metalness: 0.15 });
+const absTopMat = new THREE.MeshStandardMaterial({ color: 0x12161f, roughness: 0.5, metalness: 0.2 });
+const pcbMat = new THREE.MeshStandardMaterial({ color: 0x0f5c0f, roughness: 0.7, metalness: 0.1 });
+const metalMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.3, metalness: 0.9 });
+const accentMat = new THREE.MeshStandardMaterial({ color: 0x00aadd, roughness: 0.5, metalness: 0.3, emissive: 0x001122 });
+const sensorMat = new THREE.MeshStandardMaterial({ color: 0xaa8800, roughness: 0.5, metalness: 0.4 });
+const whiteMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8, metalness: 0.0 });
+const filterMat = new THREE.MeshStandardMaterial({ color: 0xccddee, roughness: 0.95, metalness: 0.0, transparent: true, opacity: 0.85 });
+const carbonMat = new THREE.MeshStandardMaterial({ color: 0x222228, roughness: 0.9, metalness: 0.1 });
+const screenMat = new THREE.MeshStandardMaterial({ color: 0x001100, roughness: 0.2, metalness: 0.1, emissive: 0x003300 });
+const glowGreenMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, roughness: 0.3, metalness: 0.0, emissive: 0x00ff88, emissiveIntensity: 1.0 });
+const glowRedMat = new THREE.MeshStandardMaterial({ color: 0xff3344, roughness: 0.3, metalness: 0.0, emissive: 0xff3344, emissiveIntensity: 1.0 });
+const glowYellowMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.3, metalness: 0.0, emissive: 0xffaa00, emissiveIntensity: 1.0 });
+const relayMat = new THREE.MeshStandardMaterial({ color: 0x003366, roughness: 0.6, metalness: 0.2 });
+const wireMats = {
+  red: new THREE.MeshStandardMaterial({ color: 0xff2200, roughness: 0.8 }),
+  black: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }),
+  yellow: new THREE.MeshStandardMaterial({ color: 0xffdd00, roughness: 0.8 }),
+  blue: new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.8 }),
+  green: new THREE.MeshStandardMaterial({ color: 0x00aa44, roughness: 0.8 }),
+};
+
+// ── COMPONENT GROUPS ──
+const rootGroup = new THREE.Group();
+scene.add(rootGroup);
+
+const groups = {
+  enclosure: new THREE.Group(),
+  arduino: new THREE.Group(),
+  mq135: new THREE.Group(),
+  oled: new THREE.Group(),
+  fan: new THREE.Group(),
+  hepa: new THREE.Group(),
+  carbon: new THREE.Group(),
+  relay: new THREE.Group(),
+  led: new THREE.Group(),
+  buzzer: new THREE.Group(),
+  buck: new THREE.Group(),
+  wires: new THREE.Group(),
+};
+Object.values(groups).forEach(g => rootGroup.add(g));
+
+// Helper functions
+function box(w, h, d, mat, x=0, y=0, z=0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function cyl(rt, rb, h, seg, mat, x=0, y=0, z=0) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  return m;
+}
+
+// ── ENCLOSURE (150×80×100mm → scale ×0.04 = 6×3.2×4 units) ──
+const encW=6, encH=3.2, encD=4;
+function buildEnclosure() {
+  const g = groups.enclosure;
+  const t = 0.08; // wall thickness
+  // Bottom
+  g.add(box(encW, t, encD, absMat, 0, -encH/2+t/2, 0));
+  // Top
+  g.add(box(encW, t, encD, absTopMat, 0, encH/2-t/2, 0));
+  // Left wall
+  g.add(box(t, encH-t*2, encD, absMat, -encW/2+t/2, 0, 0));
+  // Right wall
+  g.add(box(t, encH-t*2, encD, absMat, encW/2-t/2, 0, 0));
+  // Back wall
+  g.add(box(encW-t*2, encH-t*2, t, absMat, 0, 0, -encD/2+t/2));
+  // Front panel (with cutouts represented by separate pieces)
+  // Front top piece
+  g.add(box(encW-t*2, encH*0.3, t, absMat, 0, encH*0.35, encD/2-t/2));
+  // Front bottom piece
+  g.add(box(encW-t*2, encH*0.2, t, absMat, 0, -encH*0.4, encD/2-t/2));
+  // Front left strip
+  g.add(box(encW*0.15, encH*0.5, t, absMat, -encW*0.42, 0, encD/2-t/2));
+  // Front right strip
+  g.add(box(encW*0.15, encH*0.5, t, absMat, encW*0.42, 0, encD/2-t/2));
+
+  // Intake grille (top)
+  for(let i=-4; i<=4; i++) {
+    g.add(box(0.04, t*1.5, encD*0.4, metalMat, i*0.25, encH/2, 0));
+  }
+  // Exhaust grille (back)
+  for(let j=-3; j<=3; j++) {
+    for(let k=-4; k<=4; k++) {
+      const hole = box(0.04, 0.04, t*1.5, metalMat, k*0.25, j*0.2, -encD/2);
+      g.add(hole);
+    }
+  }
+  // Corner screws
+  const screwPos = [[-encW/2+0.15, encH/2, encD/2-0.15],[encW/2-0.15, encH/2, encD/2-0.15],
+                    [-encW/2+0.15, encH/2, -encD/2+0.15],[encW/2-0.15, encH/2, -encD/2+0.15]];
+  screwPos.forEach(p => {
+    const s = cyl(0.05, 0.05, 0.05, 6, metalMat, p[0], p[1], p[2]);
+    s.rotation.x = Math.PI/2; g.add(s);
+  });
+  // Rubber feet
+  const feetPos = [[-encW/2+0.2,-encH/2,encD/2-0.2],[encW/2-0.2,-encH/2,encD/2-0.2],
+                   [-encW/2+0.2,-encH/2,-encD/2+0.2],[encW/2-0.2,-encH/2,-encD/2+0.2]];
+  feetPos.forEach(p => {
+    const f = cyl(0.07, 0.08, 0.05, 8, carbonMat, p[0], p[1]-0.03, p[2]);
+    g.add(f);
+  });
+  // Label
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x003344, emissiveIntensity: 0.5, roughness: 0.5 });
+  g.add(box(1.2, 0.08, 0.01, labelMat, 0, encH/2-0.06, encD/2+0.01));
+}
+buildEnclosure();
+
+// ── ARDUINO UNO ──
+function buildArduino() {
+  const g = groups.arduino;
+  // Main PCB
+  const pcb = box(2.8, 0.06, 2.1, pcbMat, 0, 0, 0); g.add(pcb);
+  // USB port
+  g.add(box(0.35, 0.2, 0.22, metalMat, -0.9, 0.1, -1.05));
+  // Power jack
+  g.add(box(0.25, 0.22, 0.28, metalMat, -1.4, 0.1, -0.8));
+  // ATmega chip
+  const chipMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+  g.add(box(0.5, 0.08, 0.4, chipMat, 0.2, 0.08, 0.1));
+  // Crystal
+  g.add(cyl(0.04, 0.04, 0.12, 6, metalMat, 0.6, 0.1, 0.3));
+  // Pin headers
+  for(let i=0; i<13; i++) {
+    g.add(box(0.05, 0.12, 0.05, metalMat, -1.3+i*0.21, 0.1, -1.0));
+  }
+  for(let i=0; i<6; i++) {
+    g.add(box(0.05, 0.12, 0.05, metalMat, -0.6+i*0.21, 0.1, 1.0));
+  }
+  // LED indicators
+  const txLed = new THREE.Mesh(new THREE.SphereGeometry(0.04,8,6), glowGreenMat);
+  txLed.position.set(-1.1, 0.08, 0.8); g.add(txLed);
+  const rxLed = new THREE.Mesh(new THREE.SphereGeometry(0.04,8,6), glowYellowMat);
+  rxLed.position.set(-1.1, 0.08, 0.6); g.add(rxLed);
+  const pwrLed = new THREE.Mesh(new THREE.SphereGeometry(0.04,8,6), glowGreenMat);
+  pwrLed.position.set(-1.1, 0.08, 0.4); g.add(pwrLed);
+  // Mounting holes
+  [[-1.3,-1.0],[1.3,-1.0],[-1.3,0.95],[1.3,0.95]].forEach(p => {
+    g.add(cyl(0.06,0.06,0.1,12,metalMat, p[0], 0, p[1]));
+  });
+  g.position.set(-1.0, -0.9, -0.8);
+}
+buildArduino();
+
+// ── MQ135 SENSOR ──
+function buildMQ135() {
+  const g = groups.mq135;
+  // PCB
+  g.add(box(0.6, 0.06, 0.8, pcbMat, 0, 0, 0));
+  // Metal dome (sensing element)
+  const domeMat = new THREE.MeshStandardMaterial({ color: 0xccaa55, roughness: 0.3, metalness: 0.9 });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8, 0, Math.PI*2, 0, Math.PI/2), domeMat);
+  dome.position.set(0, 0.15, 0); g.add(dome);
+  const domeBase = cyl(0.15,0.15,0.04,12,domeMat,0,0.05,0); g.add(domeBase);
+  // Mesh holes on dome
+  const meshMat = new THREE.MeshStandardMaterial({ color: 0x333300, roughness: 0.8 });
+  for(let i=0; i<6; i++) {
+    const ang = i*Math.PI/3;
+    const h = cyl(0.02,0.02,0.05,6,meshMat, Math.cos(ang)*0.08, 0.15, Math.sin(ang)*0.08);
+    g.add(h);
+  }
+  // Pins
+  for(let i=0; i<4; i++) {
+    const pin = cyl(0.015,0.015,0.25,6,metalMat,-0.15+i*0.1, -0.15, 0);
+    g.add(pin);
+  }
+  g.position.set(1.5, -0.6, 0.5);
+}
+buildMQ135();
+
+// ── OLED DISPLAY ──
+function buildOLED() {
+  const g = groups.oled;
+  // PCB board
+  g.add(box(0.85, 0.05, 0.45, pcbMat, 0, 0, 0));
+  // Display screen
+  const screenArea = box(0.75, 0.02, 0.35, screenMat, 0, 0.035, 0); g.add(screenArea);
+  // Screen glow
+  const glowMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 });
+  const glow = box(0.72, 0.01, 0.32, glowMat, 0, 0.05, 0); g.add(glow);
+  // Bezel
+  g.add(box(0.82, 0.04, 0.42, new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 }), 0, 0.02, 0));
+  // Pin header
+  for(let i=0; i<4; i++) {
+    g.add(cyl(0.015,0.015,0.2,6,metalMat,-0.15+i*0.1,-0.12,0.18));
+  }
+  g.position.set(-1.6, 0.6, 1.9);
+  g.rotation.x = -0.1;
+}
+buildOLED();
+
+// ── 120mm FAN ──
+function buildFan() {
+  const g = groups.fan;
+  const fanFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4,0.25,2.4), carbonMat);
+  fanFrame.castShadow = true; g.add(fanFrame);
+  // Frame cutout ring
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x333340, roughness: 0.7 });
+  g.add(new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.08, 8, 32), ringMat));
+  // Motor hub
+  g.add(cyl(0.18,0.18,0.3,16, metalMat, 0,0,0));
+  // Fan blades (7 blades)
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.5, metalness: 0.3, transparent: true, opacity: 0.85 });
+  for(let i=0; i<7; i++) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.15, 0.9), bladeMat);
+    blade.rotation.y = i * Math.PI * 2 / 7;
+    blade.rotation.z = 0.3;
+    blade.position.set(Math.cos(i*Math.PI*2/7)*0.55, 0, Math.sin(i*Math.PI*2/7)*0.55);
+    g.add(blade);
+  }
+  // Corner screw holes
+  [[-1.0,-1.0],[1.0,-1.0],[-1.0,1.0],[1.0,1.0]].forEach(p => {
+    g.add(cyl(0.06,0.06,0.28,8,metalMat,p[0],0,p[1]));
+  });
+  groups.fan.userData.blades = g.children.filter((c,i) => i > 2 && i < 10);
+  g.position.set(0, 0.3, -0.3);
+  g.rotation.x = Math.PI/2;
+}
+buildFan();
+
+// ── HEPA FILTER ──
+function buildHEPA() {
+  const g = groups.hepa;
+  // Filter body
+  g.add(box(2.2, 0.4, 2.2, filterMat, 0, 0, 0));
+  // Filter pleats
+  for(let i=-5; i<=5; i++) {
+    const ply = box(0.04, 0.38, 2.18, new THREE.MeshStandardMaterial({ color: 0xddeeff, roughness: 0.9, transparent: true, opacity: 0.6 }), i*0.2, 0, 0);
+    g.add(ply);
+  }
+  // Frame
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xaabbcc, roughness: 0.6, metalness: 0.2 });
+  g.add(box(2.2, 0.05, 2.2, frameMat, 0, 0.21, 0));
+  g.add(box(2.2, 0.05, 2.2, frameMat, 0, -0.21, 0));
+  g.position.set(0, 0.6, -0.5);
+}
+buildHEPA();
+
+// ── CARBON FILTER ──
+function buildCarbon() {
+  const g = groups.carbon;
+  g.add(box(2.2, 0.3, 2.2, carbonMat, 0, 0, 0));
+  for(let i=-4; i<=4; i++) {
+    g.add(box(0.05, 0.28, 2.18, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 }), i*0.24, 0, 0));
+  }
+  const carbonFrameMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7, metalness: 0.3 });
+  g.add(box(2.2, 0.04, 2.2, carbonFrameMat, 0, 0.16, 0));
+  g.add(box(2.2, 0.04, 2.2, carbonFrameMat, 0, -0.16, 0));
+  g.position.set(0, 0.1, -0.5);
+}
+buildCarbon();
+
+// ── RELAY MODULE ──
+function buildRelay() {
+  const g = groups.relay;
+  g.add(box(0.7, 0.05, 0.45, pcbMat, 0, 0, 0));
+  // Relay coil block
+  g.add(box(0.3, 0.22, 0.28, relayMat, -0.1, 0.14, 0));
+  // Contact block
+  const contMat = new THREE.MeshStandardMaterial({ color: 0x888844, roughness: 0.4, metalness: 0.6 });
+  g.add(box(0.2, 0.15, 0.25, contMat, 0.22, 0.12, 0));
+  // Screw terminals
+  for(let i=0; i<3; i++) {
+    g.add(box(0.08, 0.1, 0.08, metalMat, 0.12+i*0.16, 0.12, -0.22));
+  }
+  g.position.set(0.8, -0.6, 0.5);
+}
+buildRelay();
+
+// ── RGB LED ──
+const ledMesh = {
+  body: null,
+  emissiveMat: null
+};
+function buildLED() {
+  const g = groups.led;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 2.0, roughness: 0.2, transparent: true, opacity: 0.9 });
+  ledMesh.emissiveMat = mat;
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), mat);
+  ledMesh.body = led; g.add(led);
+  // LED flat base
+  g.add(cyl(0.06, 0.06, 0.15, 8, metalMat, 0, -0.15, 0));
+  g.add(cyl(0.06, 0.06, 0.15, 8, metalMat, 0.1, -0.15, 0));
+  g.add(cyl(0.06, 0.06, 0.15, 8, metalMat, -0.1, -0.15, 0));
+  g.position.set(-1.5, 0.5, 1.9);
+}
+buildLED();
+
+// ── BUZZER ──
+function buildBuzzer() {
+  const g = groups.buzzer;
+  const buzMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.4 });
+  g.add(cyl(0.18, 0.18, 0.1, 16, buzMat, 0, 0, 0));
+  g.add(cyl(0.05, 0.05, 0.15, 8, metalMat, -0.08, -0.13, 0));
+  g.add(cyl(0.05, 0.05, 0.15, 8, metalMat, 0.08, -0.13, 0));
+  g.position.set(-0.5, 0.5, 1.9);
+}
+buildBuzzer();
+
+// ── BUCK CONVERTER ──
+function buildBuck() {
+  const g = groups.buck;
+  g.add(box(0.9, 0.06, 0.6, pcbMat, 0, 0, 0));
+  // Inductor
+  const indMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7, metalness: 0.3 });
+  const ind = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.05, 8, 12), indMat);
+  ind.rotation.x = Math.PI/2; ind.position.set(-0.2, 0.1, 0); g.add(ind);
+  // Capacitor
+  g.add(cyl(0.07, 0.07, 0.22, 8, new THREE.MeshStandardMaterial({color:0x1144aa, roughness:0.5}), 0.2, 0.14, 0));
+  // Trim pot
+  g.add(box(0.1, 0.1, 0.1, new THREE.MeshStandardMaterial({color:0x884400}), 0.3, 0.07, 0.1));
+  g.position.set(0.5, -0.6, -0.5);
+}
+buildBuck();
+
+// ── WIRES ──
+function addWire(from, to, mat, thickness=0.02) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const len = dir.length();
+  const wire = cyl(thickness, thickness, len, 6, mat);
+  wire.position.copy(from).add(to).multiplyScalar(0.5);
+  wire.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+  groups.wires.add(wire);
+}
+// Add key wires
+addWire(new THREE.Vector3(-1.0,-0.9,-0.8), new THREE.Vector3(1.5,-0.6,0.5), wireMats.red);
+addWire(new THREE.Vector3(-1.0,-0.9,-0.8), new THREE.Vector3(-1.6,0.6,1.9), wireMats.yellow);
+addWire(new THREE.Vector3(-1.0,-0.9,-0.8), new THREE.Vector3(-1.5,0.5,1.9), wireMats.blue);
+addWire(new THREE.Vector3(-1.0,-0.9,-0.8), new THREE.Vector3(0.8,-0.6,0.5), wireMats.green);
+addWire(new THREE.Vector3(0.5,-0.6,-0.5), new THREE.Vector3(-1.0,-0.9,-0.8), wireMats.red);
+
+// ── BASE PLATFORM ──
+const baseMat = new THREE.MeshStandardMaterial({ color: 0x0a0f18, roughness: 0.8, metalness: 0.1 });
+const base = box(8, 0.05, 6, baseMat, 0, -1.7, 0);
+base.receiveShadow = true;
+scene.add(base);
+// Grid on base
+const gridHelper = new THREE.GridHelper(8, 16, 0x112244, 0x0a1a2a);
+gridHelper.position.y = -1.67;
+scene.add(gridHelper);
+
+// Glowing ring under unit
+const ringGeo = new THREE.TorusGeometry(3.5, 0.02, 8, 64);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.3 });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI/2;
+ring.position.y = -1.65;
+scene.add(ring);
+
+// ── ORBIT CONTROLS (manual) ──
+let isDragging = false, prevMouse = { x: 0, y: 0 };
+let spherical = { theta: 0.5, phi: 1.0, radius: 12 };
+let targetSpherical = { ...spherical };
+let currentView = 'assembled';
+
+canvas3d.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+canvas3d.addEventListener('mousemove', e => {
+  if(!isDragging) return;
+  const dx = (e.clientX - prevMouse.x) * 0.008;
+  const dy = (e.clientY - prevMouse.y) * 0.008;
+  targetSpherical.theta -= dx;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, targetSpherical.phi + dy));
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+canvas3d.addEventListener('mouseup', () => isDragging = false);
+canvas3d.addEventListener('mouseleave', () => isDragging = false);
+canvas3d.addEventListener('wheel', e => {
+  targetSpherical.radius = Math.max(4, Math.min(25, targetSpherical.radius + e.deltaY * 0.02));
+  e.preventDefault();
+}, { passive: false });
+
+// Touch events
+let lastTouch = null;
+canvas3d.addEventListener('touchstart', e => { lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY }; });
+canvas3d.addEventListener('touchmove', e => {
+  if(!lastTouch) return;
+  const dx = (e.touches[0].clientX - lastTouch.x) * 0.008;
+  const dy = (e.touches[0].clientY - lastTouch.y) * 0.008;
+  targetSpherical.theta -= dx;
+  targetSpherical.phi = Math.max(0.1, Math.min(Math.PI-0.1, targetSpherical.phi+dy));
+  lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  e.preventDefault();
+}, { passive: false });
+
+// ── VIEW PRESETS ──
+const viewPresets = {
+  assembled: { theta: 0.5, phi: 1.0, radius: 12, target: new THREE.Vector3(0, 0, 0), label: 'Assembled View' },
+  exploded: { theta: 0.3, phi: 0.85, radius: 16, target: new THREE.Vector3(0, 1, 0), label: 'Exploded Assembly View' },
+  internal: { theta: 0.5, phi: 1.1, radius: 10, target: new THREE.Vector3(0, 0, 0), label: 'Internal Components View' },
+  airflow: { theta: 0, phi: 1.2, radius: 11, target: new THREE.Vector3(0, 0, 0), label: 'Airflow Path View' },
+  front: { theta: Math.PI, phi: 1.1, radius: 9, target: new THREE.Vector3(0, 0, 1), label: 'Front Panel View' },
+  wiring: { theta: 0.4, phi: 0.6, radius: 14, target: new THREE.Vector3(0, -0.5, 0), label: 'Wiring Overview' },
+};
+
+let explodedFactor = 0, targetExplodedFactor = 0;
+const basePositions = {};
+Object.entries(groups).forEach(([k, g]) => { basePositions[k] = g.position.clone(); });
+
+const explodedOffsets = {
+  enclosure: new THREE.Vector3(0, 0, 0),
+  arduino: new THREE.Vector3(-2, -2, -1),
+  mq135: new THREE.Vector3(3, 1, 2),
+  oled: new THREE.Vector3(-3.5, 2, 3.5),
+  fan: new THREE.Vector3(0, 3.5, 0),
+  hepa: new THREE.Vector3(0, 2.5, -1),
+  carbon: new THREE.Vector3(0, 1.5, -1),
+  relay: new THREE.Vector3(2.5, -1, 2),
+  led: new THREE.Vector3(-3, 1.5, 3.5),
+  buzzer: new THREE.Vector3(-1, 1.5, 3.5),
+  buck: new THREE.Vector3(2, -2, -2),
+  wires: new THREE.Vector3(0, 0, 0),
+};
+
+window.setView = function(v, el) {
+  document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  currentView = v;
+  const p = viewPresets[v];
+  targetSpherical.theta = p.theta;
+  targetSpherical.phi = p.phi;
+  targetSpherical.radius = p.radius;
+  document.getElementById('viewLabel').textContent = '🔄 ' + p.label + ' — Drag to Rotate';
+
+  // Exploded vs normal
+  targetExplodedFactor = (v === 'exploded') ? 1 : 0;
+
+  // Show/hide components based on view
+  groups.wires.visible = (v === 'wiring' || v === 'assembled');
+  groups.enclosure.visible = (v !== 'internal' && v !== 'wiring');
+};
+
+// ── SIMULATION STATE ──
+let simAQI = 35;
+let targetAQI = 35;
+let autoCycle = false;
+let autoCyclePhase = 0;
+let simSeconds = 0;
+let fanRunning = false;
+let buzzerBeeping = false;
+let calibrating = false;
+let calibTimer = 0;
+const aqiHistory = new Array(300).fill(35);
+
+window.setScenario = function(sc) {
+  autoCycle = false;
+  if(sc === 'good') targetAQI = 25 + Math.random()*25;
+  else if(sc === 'moderate') targetAQI = 60 + Math.random()*35;
+  else if(sc === 'poor') targetAQI = 110 + Math.random()*40;
+  else if(sc === 'danger') targetAQI = 160 + Math.random()*100;
+  else if(sc === 'auto') { autoCycle = true; }
+  document.getElementById('aqiSlider').value = targetAQI;
+  document.getElementById('aqiSliderVal').textContent = Math.round(targetAQI);
+};
+
+window.calibrate = function() {
+  calibrating = true; calibTimer = 180;
+  document.getElementById('oled-status').textContent = 'CALIBRATING...';
+  document.getElementById('oled-aqi').style.color = '#ffaa00';
+};
+
+document.getElementById('aqiSlider').oninput = function() {
+  targetAQI = +this.value;
+  document.getElementById('aqiSliderVal').textContent = this.value;
+  autoCycle = false;
+};
+document.getElementById('simSpeed').oninput = function() {
+  document.getElementById('simSpeedVal').textContent = this.value + '×';
+};
+
+// ── AQI GRAPH ──
+const graphCanvas = document.getElementById('aqiGraphCanvas');
+const graphCtx = graphCanvas.getContext('2d');
+
+function resizeGraphCanvas() {
+  const wrap = graphCanvas.parentElement;
+  graphCanvas.width = wrap.offsetWidth;
+  graphCanvas.height = wrap.offsetHeight;
+}
+
+function drawAQIGraph() {
+  const w = graphCanvas.width, h = graphCanvas.height;
+  if(!w || !h) return;
+  graphCtx.fillStyle = 'rgba(0,0,0,0.0)';
+  graphCtx.clearRect(0, 0, w, h);
+
+  // Grid lines
+  graphCtx.strokeStyle = 'rgba(30,60,80,0.6)';
+  graphCtx.lineWidth = 0.5;
+  [100, 200, 300, 400].forEach(v => {
+    const y = h - (v / 500) * h;
+    graphCtx.beginPath(); graphCtx.moveTo(0, y); graphCtx.lineTo(w, y); graphCtx.stroke();
+  });
+
+  // Threshold lines
+  graphCtx.strokeStyle = 'rgba(255,170,0,0.4)'; graphCtx.lineWidth = 1;
+  graphCtx.setLineDash([4,4]);
+  const y100 = h - (100/500)*h;
+  graphCtx.beginPath(); graphCtx.moveTo(0, y100); graphCtx.lineTo(w, y100); graphCtx.stroke();
+  graphCtx.strokeStyle = 'rgba(255,51,68,0.4)';
+  const y150 = h - (150/500)*h;
+  graphCtx.beginPath(); graphCtx.moveTo(0, y150); graphCtx.lineTo(w, y150); graphCtx.stroke();
+  graphCtx.setLineDash([]);
+
+  // AQI gradient fill
+  const grad = graphCtx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(255,51,68,0.4)');
+  grad.addColorStop(0.3, 'rgba(255,170,0,0.3)');
+  grad.addColorStop(0.7, 'rgba(0,255,136,0.2)');
+  grad.addColorStop(1, 'rgba(0,255,136,0.0)');
+  graphCtx.fillStyle = grad;
+  graphCtx.beginPath();
+  graphCtx.moveTo(0, h);
+  const len = Math.min(aqiHistory.length, w);
+  for(let i = 0; i < len; i++) {
+    const x = (i / len) * w;
+    const y = h - (aqiHistory[aqiHistory.length - len + i] / 500) * h;
+    i===0 ? graphCtx.lineTo(x, y) : graphCtx.lineTo(x, y);
+  }
+  graphCtx.lineTo(w, h); graphCtx.closePath(); graphCtx.fill();
+
+  // Line
+  graphCtx.strokeStyle = simAQI > 150 ? '#ff3344' : simAQI > 100 ? '#ffaa00' : '#00ff88';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.beginPath();
+  for(let i = 0; i < len; i++) {
+    const x = (i / len) * w;
+    const y = h - (aqiHistory[aqiHistory.length - len + i] / 500) * h;
+    i===0 ? graphCtx.moveTo(x, y) : graphCtx.lineTo(x, y);
+  }
+  graphCtx.stroke();
+
+  // Current value dot
+  const cy = h - (simAQI/500)*h;
+  graphCtx.fillStyle = simAQI>150?'#ff3344':simAQI>100?'#ffaa00':'#00ff88';
+  graphCtx.beginPath(); graphCtx.arc(w-2, cy, 3, 0, Math.PI*2); graphCtx.fill();
+}
+
+// ── UPDATE UI ──
+function getAQIColor(aqi) {
+  if(aqi <= 50) return '#00ff88';
+  if(aqi <= 100) return '#ffaa00';
+  if(aqi <= 150) return '#ff6622';
+  return '#ff3344';
+}
+function getAQIStatus(aqi) {
+  if(aqi <= 50) return 'EXCELLENT';
+  if(aqi <= 100) return 'MODERATE';
+  if(aqi <= 150) return 'POOR';
+  if(aqi <= 200) return 'UNHEALTHY';
+  return 'VERY UNHEALTHY';
+}
+
+function updateUI() {
+  const aqi = Math.round(simAQI);
+  const col = getAQIColor(aqi);
+  const status = getAQIStatus(aqi);
+  const rawADC = Math.round(200 + (aqi/500)*600);
+  const co2 = Math.round(400 + aqi * 1.5);
+  const nh3 = (0.5 + aqi*0.02).toFixed(1);
+  const nox = (0.02 + aqi*0.001).toFixed(3);
+  const benz = (0.2 + aqi*0.02).toFixed(1);
+  const smoke = (0.01 + aqi*0.001).toFixed(3);
+
+  // AQI big display
+  document.getElementById('aqiValue').textContent = aqi;
+  document.getElementById('aqiValue').style.color = col;
+  document.getElementById('aqiStatus').textContent = status;
+  document.getElementById('aqiStatus').style.color = col;
+  document.getElementById('aqiCursor').style.left = Math.min(98, (aqi/500)*100) + '%';
+  document.getElementById('hdrAqi').textContent = aqi;
+
+  // Header status
+  const badge = document.getElementById('mainStatus');
+  badge.className = 'status-badge ' + (aqi<=50?'status-good':aqi<=100?'status-moderate':'status-poor');
+  badge.textContent = aqi<=50?'● GOOD':aqi<=100?'● MODERATE':'⚠ POOR';
+
+  // Sensor rows
+  document.getElementById('val-co2').textContent = co2 + ' ppm';
+  document.getElementById('bar-co2').style.width = Math.min(100, co2/1000*100) + '%';
+  document.getElementById('val-nh3').textContent = nh3 + ' ppm';
+  document.getElementById('bar-nh3').style.width = Math.min(100, nh3*20) + '%';
+  document.getElementById('val-nox').textContent = nox + ' ppm';
+  document.getElementById('bar-nox').style.width = Math.min(100, nox*2000) + '%';
+  document.getElementById('val-benz').textContent = benz + ' μg/m³';
+  document.getElementById('bar-benz').style.width = Math.min(100, benz*10) + '%';
+  document.getElementById('val-smoke').textContent = smoke + ' mg/m³';
+  document.getElementById('bar-smoke').style.width = Math.min(100, smoke*500) + '%';
+  document.getElementById('val-raw').textContent = rawADC;
+  document.getElementById('bar-raw').style.width = (rawADC/1023*100) + '%';
+
+  // Fan & relay
+  fanRunning = aqi > 100;
+  buzzerBeeping = aqi > 150;
+  const fanEl = document.getElementById('comp-fan');
+  const relayEl = document.getElementById('comp-relay');
+  fanEl.className = fanRunning ? 'comp-card warn' : 'comp-card';
+  document.getElementById('cs-fan').textContent = fanRunning ? '● RUNNING' : '○ OFF';
+  document.getElementById('cs-fan').className = 'comp-state ' + (fanRunning?'warn':'off');
+  relayEl.className = fanRunning ? 'comp-card warn' : 'comp-card';
+  document.getElementById('cs-relay').textContent = fanRunning ? '● CLOSED' : '○ OPEN';
+  document.getElementById('cs-relay').className = 'comp-state ' + (fanRunning?'warn':'off');
+  document.getElementById('comp-buzzer').className = buzzerBeeping ? 'comp-card alert' : 'comp-card';
+  document.getElementById('cs-buzzer').textContent = buzzerBeeping ? '⚠ BEEPING' : '○ SILENT';
+  document.getElementById('cs-buzzer').className = 'comp-state ' + (buzzerBeeping?'danger':'off');
+
+  // OLED sim
+  document.getElementById('oled-aqi').textContent = 'AQI: ' + aqi;
+  document.getElementById('oled-aqi').style.color = col;
+  if(!calibrating) document.getElementById('oled-status').textContent = 'Status: ' + status;
+  document.getElementById('oled-co2').textContent = 'CO2: ' + co2 + 'ppm';
+  document.getElementById('oled-fan').textContent = 'Fan:' + (fanRunning?'ON':'OFF') + ' Rly:' + (fanRunning?'ON':'OFF');
+  const h_ = Math.floor(simSeconds/3600), m_ = Math.floor((simSeconds%3600)/60), s_ = simSeconds%60;
+  const fmt = n => String(n).padStart(2,'0');
+  document.getElementById('oled-uptime').textContent = 'Up: ' + fmt(h_) + ':' + fmt(m_) + ':' + fmt(s_);
+
+  // LED colors
+  const lr = document.getElementById('led-r');
+  const lg = document.getElementById('led-g');
+  const lb = document.getElementById('led-b');
+  if(aqi <= 50) {
+    lr.style.cssText = 'background:#1a3322;color:#00ff88;width:18px;height:18px;border-color:#1a3322;box-shadow:none;border-radius:50%;border:2px solid rgba(255,255,255,0.15);';
+    lg.style.cssText = 'background:#00ff88;color:#00ff88;width:18px;height:18px;box-shadow:0 0 12px 4px #00ff88;border-color:#00ff88;border-radius:50%;border:2px solid;';
+    lb.style.cssText = 'background:#1a1a33;color:#0044ff;width:18px;height:18px;border-color:#1a1a33;box-shadow:none;border-radius:50%;border:2px solid rgba(255,255,255,0.15);';
+    document.getElementById('led-state').textContent = 'GREEN — GOOD'; document.getElementById('led-state').style.color = '#00ff88';
+    document.getElementById('pin-r').textContent='0'; document.getElementById('pin-g').textContent='255'; document.getElementById('pin-b').textContent='0';
+    ledMesh.emissiveMat.color.setHex(0x00ff88); ledMesh.emissiveMat.emissive.setHex(0x00ff88); ledGlow.color.setHex(0x00ff88);
+  } else if(aqi <= 100) {
+    lr.style.cssText = 'background:#ffaa00;color:#ffaa00;width:18px;height:18px;box-shadow:0 0 10px 3px #ffaa00;border-color:#ffaa00;border-radius:50%;border:2px solid;';
+    lg.style.cssText = 'background:#aaaa00;color:#ffaa00;width:18px;height:18px;box-shadow:0 0 6px 2px #aaaa00;border-color:#aaaa00;border-radius:50%;border:2px solid;';
+    lb.style.cssText = 'background:#1a1a33;color:#0044ff;width:18px;height:18px;border-color:#1a1a33;box-shadow:none;border-radius:50%;border:2px solid rgba(255,255,255,0.15);';
+    document.getElementById('led-state').textContent = 'YELLOW — MODERATE'; document.getElementById('led-state').style.color = '#ffaa00';
+    document.getElementById('pin-r').textContent='100'; document.getElementById('pin-g').textContent='100'; document.getElementById('pin-b').textContent='0';
+    ledMesh.emissiveMat.color.setHex(0xffaa00); ledMesh.emissiveMat.emissive.setHex(0xffaa00); ledGlow.color.setHex(0xffaa00);
+  } else {
+    lr.style.cssText = 'background:#ff3344;color:#ff3344;width:18px;height:18px;box-shadow:0 0 14px 5px #ff3344;border-color:#ff3344;border-radius:50%;border:2px solid;';
+    lg.style.cssText = 'background:#1a0010;color:#00ff88;width:18px;height:18px;border-color:#1a0010;box-shadow:none;border-radius:50%;border:2px solid rgba(255,255,255,0.15);';
+    lb.style.cssText = 'background:#1a1a33;color:#0044ff;width:18px;height:18px;border-color:#1a1a33;box-shadow:none;border-radius:50%;border:2px solid rgba(255,255,255,0.15);';
+    document.getElementById('led-state').textContent = 'RED — POOR'; document.getElementById('led-state').style.color = '#ff3344';
+    document.getElementById('pin-r').textContent='255'; document.getElementById('pin-g').textContent='0'; document.getElementById('pin-b').textContent='0';
+    ledMesh.emissiveMat.color.setHex(0xff3344); ledMesh.emissiveMat.emissive.setHex(0xff3344); ledGlow.color.setHex(0xff3344);
+  }
+
+  // Sim time
+  document.getElementById('simTime').textContent = fmt(Math.floor(simSeconds/60)) + ':' + fmt(simSeconds%60);
+  const now = new Date(), p = n=>String(n).padStart(2,'0');
+  document.getElementById('clockDisplay').textContent = p(now.getHours())+':'+p(now.getMinutes())+':'+p(now.getSeconds());
+}
+
+// ── 3D UPDATE ──
+let fanAngle = 0;
+let time3D = 0;
+const camTarget = new THREE.Vector3(0, 0, 0);
+
+function update3D(dt) {
+  time3D += dt;
+
+  // Smooth AQI
+  if(autoCycle) {
+    autoCyclePhase += dt * 0.1;
+    targetAQI = 30 + 200 * (0.5 + 0.5 * Math.sin(autoCyclePhase)) + 50 * Math.sin(autoCyclePhase * 3.3);
+    targetAQI = Math.max(10, Math.min(350, targetAQI));
+    document.getElementById('aqiSlider').value = Math.round(targetAQI);
+    document.getElementById('aqiSliderVal').textContent = Math.round(targetAQI);
+  }
+  const speed = +document.getElementById('simSpeed').value;
+  simAQI += (targetAQI - simAQI) * 0.02 * speed;
+  simAQI = Math.max(0, Math.min(500, simAQI));
+
+  // AQI history
+  if(Math.floor(time3D * 5) > Math.floor((time3D - dt) * 5)) {
+    aqiHistory.push(simAQI);
+    if(aqiHistory.length > 300) aqiHistory.shift();
+  }
+
+  // Calibration
+  if(calibrating) {
+    calibTimer--;
+    if(calibTimer <= 0) {
+      calibrating = false;
+      document.getElementById('oled-aqi').style.color = getAQIColor(simAQI);
+    }
+  }
+
+  // Camera smooth follow
+  spherical.theta += (targetSpherical.theta - spherical.theta) * 0.08;
+  spherical.phi += (targetSpherical.phi - spherical.phi) * 0.08;
+  spherical.radius += (targetSpherical.radius - spherical.radius) * 0.08;
+
+  const preset = viewPresets[currentView];
+  camTarget.lerp(preset.target, 0.05);
+
+  camera.position.set(
+    camTarget.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+    camTarget.y + spherical.radius * Math.cos(spherical.phi),
+    camTarget.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+  );
+  camera.lookAt(camTarget);
+
+  // Exploded view
+  explodedFactor += (targetExplodedFactor - explodedFactor) * 0.05;
+  Object.entries(groups).forEach(([k, g]) => {
+    const base = basePositions[k];
+    const off = explodedOffsets[k] || new THREE.Vector3();
+    g.position.lerpVectors(base, base.clone().add(off), explodedFactor);
+  });
+
+  // Fan spin
+  if(fanRunning) {
+    fanAngle += dt * 15;
+  } else if(fanAngle > 0) {
+    fanAngle += dt * Math.max(2, 15 * (1 - explodedFactor));
+  }
+  // Rotate fan blades
+  if(groups.fan) {
+    groups.fan.children.forEach((child, i) => {
+      if(i >= 3 && i < 10) {
+        // These are blade children — rotate around fan axis
+      }
+    });
+    groups.fan.rotation.z = fanRunning ? fanAngle : groups.fan.rotation.z;
+    if(!fanRunning) groups.fan.rotation.z += dt * 0.5; // coast down effect
+  }
+
+  // Buzzer glow pulse
+  if(buzzerBeeping) {
+    const pulse = 0.5 + 0.5 * Math.sin(time3D * 20);
+    groups.buzzer.children.forEach(c => {
+      if(c.material && c.material.color) c.material.emissiveIntensity = pulse;
+    });
+    fanGlow.color.setHex(0xff3344);
+    fanGlow.intensity = 1 + pulse;
+  }
+
+  // LED pulsing
+  if(ledMesh.emissiveMat) {
+    const aqi = simAQI;
+    const pulse = 0.8 + 0.2 * Math.sin(time3D * (aqi > 150 ? 8 : aqi > 100 ? 4 : 2));
+    ledMesh.emissiveMat.emissiveIntensity = pulse;
+    ledGlow.intensity = pulse * 2;
+  }
+
+  // OLED screen flicker subtly
+  if(groups.oled.children[2] && groups.oled.children[2].material) {
+    groups.oled.children[2].material.emissiveIntensity = calibrating ? 0.3 + 0.3*Math.sin(time3D*20) : 0.5 + 0.1*Math.sin(time3D*0.5);
+  }
+
+  // Subtle float animation on enclosure
+  rootGroup.position.y = Math.sin(time3D * 0.4) * 0.05;
+  rootGroup.rotation.y += dt * 0.003 * (isDragging ? 0 : 1);
+
+  // Airflow particles visual: animate fan glow with rotation
+  fanGlow.intensity = fanRunning ? 0.5 + 0.3*Math.sin(time3D*10) : 0.1;
+
+  // Ring glow
+  ring.material.opacity = 0.15 + 0.1 * Math.sin(time3D * 1.5);
+  ring.material.color.setHex(simAQI > 150 ? 0xff3344 : simAQI > 100 ? 0xffaa00 : 0x00d4ff);
+}
+
+// ── RESIZE ──
+function resizeAll() {
+  const w = centerPanel.offsetWidth, h = centerPanel.offsetHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  resizeGraphCanvas();
+}
+window.addEventListener('resize', resizeAll);
+
+// ── MAIN LOOP ──
+let lastTime = performance.now();
+let frameCount = 0, fpsTime = 0, fps = 60;
+let secondTimer = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  frameCount++;
+  fpsTime += dt;
+  secondTimer += dt;
+  if(fpsTime >= 1) { fps = frameCount; frameCount = 0; fpsTime = 0; }
+  if(secondTimer >= 1/+document.getElementById('simSpeed').value) {
+    simSeconds++;
+    secondTimer = 0;
+  }
+  update3D(dt);
+  updateUI();
+  drawAQIGraph();
+  renderer.render(scene, camera);
+}
+
+// ── INIT ──
+resizeAll();
+setView('assembled', document.querySelector('.vbtn.active'));
+animate();
+</script>
+</body>
+</html>
